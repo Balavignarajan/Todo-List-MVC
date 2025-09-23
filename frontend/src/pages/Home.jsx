@@ -63,6 +63,17 @@ const Home = () => {
       fetchTodos();
     } catch (err) {
       console.error("Failed to create todo:", err);
+
+      // Check for validation error from server showing backend message in ui
+      if (err.response && err.response.data && err.response.data.errors) {
+        const serverErrors = err.response.data.errors;
+        const titleError = serverErrors.find((e) => e.path === "title");
+        if (titleError) {
+          setError(titleError.msg); // Show "Title must be at least 3 characters"
+          return;
+        }
+      }
+
       setError("Failed to create todo. See console.");
     }
   };

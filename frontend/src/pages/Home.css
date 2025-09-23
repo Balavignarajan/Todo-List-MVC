@@ -89,3 +89,8 @@ li button:hover {
   color: #007bff;
   border-color: #007bff;
 }
+
+.error {
+  color: red;
+  font-size: 24px;
+}
