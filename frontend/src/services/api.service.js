@@ -15,3 +15,14 @@ export const apiUpdateTodo = (id, todo) => {
 export const apiDeleteTodo = (id) => {
   return axiosInstance.delete(`/api/todos/${id}`);
 };
+
+//Auth
+// Register a new user
+export const apiRegisterUser = (userData) => {
+  return axiosInstance.post("/api/auth/register", userData);
+};
+
+// Login user
+export const apiLoginUser = (credentials) => {
+  return axiosInstance.post("/api/auth/login", credentials);
+};

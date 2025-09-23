@@ -6,6 +6,8 @@ import {
   apiUpdateTodo,
 } from "../services/api.service";
 import "../pages/Home.css"; // optional, simple styles
+import { useNavigate } from "react-router-dom";
+
 
 // Home component: shows a form to add/edit todos and a list of todos
 const Home = () => {
@@ -25,6 +27,17 @@ const Home = () => {
   // (Optional) small UI helpers
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+    const navigate = useNavigate();
+  
+
+  //For showing user name
+  const [user, setUser] = useState(null);
+  useEffect(() => {
+    const storedUser = localStorage.getItem("user");
+    if (storedUser) {
+      setUser(JSON.parse(storedUser)); // 👈 parse back to object
+    }
+  }, []);
 
   // Load todos once when component mounts
   useEffect(() => {
@@ -128,9 +141,35 @@ const Home = () => {
     }
   };
 
+//Logout
+const handleLogout = () => {
+  localStorage.removeItem("token");
+  localStorage.removeItem("user");
+  alert("Logged out!");
+      navigate("/"); // or "/dashboard" or wherever you want
+};
+
+
   return (
     <>
-      <h1 className="app-title">📝 Todo App (Beginner friendly)</h1>
+      <h1 className="app-title">📝 Todo App (Beginner friendly)</h1> 
+      <button onClick={handleLogout}>Logout</button>
+
+      <div>
+        <h1>Welcome to the Home Page</h1>
+        {user ? (
+          <div>
+            <p>
+              <strong>Name:</strong> {user.name}
+            </p>
+            <p>
+              <strong>Email:</strong> {user.email}
+            </p>
+          </div>
+        ) : (
+          <p>You are not logged in.</p>
+        )}
+      </div>
 
       {/* Form Section */}
       <div className="todo-form">
