@@ -1,12 +1,15 @@
 // src/pages/Home.jsx
 import React, { useEffect, useState, useCallback } from "react";
 import {
+  Container, Row, Col, Card, Form, Button, Alert, Badge,
+  Navbar, Nav, InputGroup, Pagination, Modal, ListGroup
+} from "react-bootstrap";
+import {
   apiCreateTodo,
   apiDeleteTodo,
   apiGetTodos,
   apiUpdateTodo,
 } from "../services/api.service"; // API calls (backend)
-import "../pages/Home.css"; // CSS styling
 import { useNavigate } from "react-router-dom"; // for redirect
 
 const Home = () => {
@@ -166,204 +169,288 @@ const Home = () => {
     navigate("/");
   };
 
+  const getPriorityVariant = (priority) => {
+    switch (priority) {
+      case 'high': return 'danger';
+      case 'medium': return 'warning';
+      case 'low': return 'success';
+      default: return 'secondary';
+    }
+  };
+
   return (
-    <div className="container">
-      <h1 className="app-title">📝 Todo App</h1>
-      <button className="logout-btn" onClick={handleLogout}>
-        Logout
-      </button>
+    <>
+      {/* Navigation Bar */}
+      <Navbar bg="primary" variant="dark" expand="lg" className="mb-4">
+        <Container>
+          <Navbar.Brand>📝 Todo App</Navbar.Brand>
+          <Navbar.Toggle />
+          <Navbar.Collapse className="justify-content-end">
+            <Nav>
+              {user && (
+                <Nav.Item className="me-3 text-light d-flex align-items-center">
+                  Welcome, {user.name}!
+                </Nav.Item>
+              )}
+              <Button variant="outline-light" size="sm" onClick={handleLogout}>
+                Logout
+              </Button>
+            </Nav>
+          </Navbar.Collapse>
+        </Container>
+      </Navbar>
 
-      {/* Show user info */}
-      <div className="user-box">
-        {user ? (
-          <>
-            <p>
-              <strong>Name:</strong> {user.name}
-            </p>
-            <p>
-              <strong>Email:</strong> {user.email}
-            </p>
-          </>
-        ) : (
-          <p>You are not logged in.</p>
+      <Container>
+        {/* User Info Card */}
+        {user && (
+          <Card className="mb-4">
+            <Card.Body>
+              <Row>
+                <Col md={6}>
+                  <strong>Name:</strong> {user.name}
+                </Col>
+                <Col md={6}>
+                  <strong>Email:</strong> {user.email}
+                </Col>
+              </Row>
+            </Card.Body>
+          </Card>
         )}
-      </div>
 
-      {/* Form */}
-      <div className="todo-form">
-        <input
-          type="text"
-          placeholder="Title"
-          value={newTodo.title}
-          onChange={(e) => setNewTodo({ ...newTodo, title: e.target.value })}
-        />
-        <input
-          type="text"
-          placeholder="Description"
-          value={newTodo.description}
-          onChange={(e) =>
-            setNewTodo({ ...newTodo, description: e.target.value })
-          }
-        />
-        <select
-          value={newTodo.priority}
-          onChange={(e) => setNewTodo({ ...newTodo, priority: e.target.value })}
-        >
-          <option value="low">Low</option>
-          <option value="medium">Medium</option>
-          <option value="high">High</option>
-        </select>
+        {/* Todo Form */}
+        <Card className="mb-4">
+          <Card.Header>
+            <h5 className="mb-0">{editId ? 'Edit Todo' : 'Add New Todo'}</h5>
+          </Card.Header>
+          <Card.Body>
+            <Row>
+              <Col md={4} className="mb-3">
+                <Form.Control
+                  type="text"
+                  placeholder="Title"
+                  value={newTodo.title}
+                  onChange={(e) => setNewTodo({ ...newTodo, title: e.target.value })}
+                />
+              </Col>
+              <Col md={4} className="mb-3">
+                <Form.Control
+                  type="text"
+                  placeholder="Description"
+                  value={newTodo.description}
+                  onChange={(e) => setNewTodo({ ...newTodo, description: e.target.value })}
+                />
+              </Col>
+              <Col md={2} className="mb-3">
+                <Form.Select
+                  value={newTodo.priority}
+                  onChange={(e) => setNewTodo({ ...newTodo, priority: e.target.value })}
+                >
+                  <option value="low">Low</option>
+                  <option value="medium">Medium</option>
+                  <option value="high">High</option>
+                </Form.Select>
+              </Col>
+              <Col md={2} className="mb-3">
+                {editId ? (
+                  <div className="d-grid gap-2">
+                    <Button variant="success" size="sm" onClick={handleUpdate}>
+                      Update
+                    </Button>
+                    <Button variant="secondary" size="sm" onClick={cancelEdit}>
+                      Cancel
+                    </Button>
+                  </div>
+                ) : (
+                  <Button variant="primary" className="w-100" onClick={handleCreate}>
+                    Add Todo
+                  </Button>
+                )}
+              </Col>
+            </Row>
+          </Card.Body>
+        </Card>
 
-        {editId ? (
-          <>
-            <button onClick={handleUpdate}>Update</button>
-            <button onClick={cancelEdit}>Cancel</button>
-          </>
-        ) : (
-          <button onClick={handleCreate}>Add Todo</button>
+        {/* Filters */}
+        <Card className="mb-4">
+          <Card.Header>
+            <h6 className="mb-0">Filters & Search</h6>
+          </Card.Header>
+          <Card.Body>
+            <Row className="g-3">
+              <Col md={3}>
+                <Form.Label>Search</Form.Label>
+                <Form.Control
+                  type="text"
+                  value={search}
+                  onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+                  placeholder="Search title/description"
+                />
+              </Col>
+              <Col md={2}>
+                <Form.Label>Priority</Form.Label>
+                <Form.Select
+                  value={priorityFilter}
+                  onChange={(e) => { setPriorityFilter(e.target.value); setPage(1); }}
+                >
+                  <option value="">All</option>
+                  <option value="low">Low</option>
+                  <option value="medium">Medium</option>
+                  <option value="high">High</option>
+                </Form.Select>
+              </Col>
+              {/* <Col md={2}>
+                <Form.Label>Status</Form.Label>
+                <Form.Select
+                  value={completedFilter}
+                  onChange={(e) => { setCompletedFilter(e.target.value); setPage(1); }}
+                >
+                  <option value="all">All</option>
+                  <option value="true">Done</option>
+                  <option value="false">Pending</option>
+                </Form.Select>
+              </Col> */}
+              {/* <Col md={2}>
+                <Form.Label>Sort By</Form.Label>
+                <Form.Select
+                  value={sortBy}
+                  onChange={(e) => { setSortBy(e.target.value); setPage(1); }}
+                >
+                  <option value="createdAt">Created</option>
+                  <option value="dueDate">Due Date</option>
+                  <option value="priority">Priority</option>
+                  <option value="title">Title</option>
+                </Form.Select>
+              </Col> */}
+              {/* <Col md={2}>
+                <Form.Label>Order</Form.Label>
+                <Form.Select
+                  value={order}
+                  onChange={(e) => { setOrder(e.target.value); setPage(1); }}
+                >
+                  <option value="desc">Newest</option>
+                  <option value="asc">Oldest</option>
+                </Form.Select>
+              </Col> */}
+              <Col md={1}>
+                <Form.Label>Per Page</Form.Label>
+                <Form.Select
+                  value={limit}
+                  onChange={(e) => { setLimit(parseInt(e.target.value)); setPage(1); }}
+                >
+                  <option value={5}>5</option>
+                  <option value={10}>10</option>
+                  <option value={20}>20</option>
+                </Form.Select>
+              </Col>
+            </Row>
+          </Card.Body>
+        </Card>
+
+        {/* Status Messages */}
+        {error && <Alert variant="danger">{error}</Alert>}
+        {loading && <Alert variant="info">Loading...</Alert>}
+
+        {/* Todo List */}
+        <Card>
+          <Card.Header className="d-flex justify-content-between align-items-center">
+            <h5 className="mb-0">Your Todos</h5>
+            <Badge bg="secondary">{meta.total} total</Badge>
+          </Card.Header>
+          <Card.Body className="p-0">
+            {todos.length === 0 && !loading ? (
+              <div className="text-center p-4 text-muted">
+                <h6>No todos found</h6>
+                <p>Create your first todo above!</p>
+              </div>
+            ) : (
+              <ListGroup variant="flush">
+                {todos.map((todo) => (
+                  <ListGroup.Item key={todo._id}>
+                    <Row className="align-items-center">
+                      <Col md={8}>
+                        <div>
+                          <h6 className="mb-1">{todo.title}</h6>
+                          <p className="mb-2 text-muted">{todo.description}</p>
+                          <div className="d-flex gap-2 flex-wrap">
+                            <Badge bg={getPriorityVariant(todo.priority)}>
+                              {todo.priority}
+                            </Badge>
+                            <Badge bg={todo.completed ? 'success' : 'warning'}>
+                              {todo.completed ? 'Done' : 'Pending'}
+                            </Badge>
+                            {todo.dueDate && (
+                              <Badge bg="info">
+                                Due: {new Date(todo.dueDate).toLocaleDateString()}
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                      </Col>
+                      <Col md={4} className="text-end">
+                        <Button
+                          variant="outline-primary"
+                          size="sm"
+                          className="me-2"
+                          onClick={() => startEdit(todo)}
+                        >
+                          Edit
+                        </Button>
+                        <Button
+                          variant="outline-danger"
+                          size="sm"
+                          onClick={() => handleDelete(todo._id)}
+                        >
+                          Delete
+                        </Button>
+                      </Col>
+                    </Row>
+                  </ListGroup.Item>
+                ))}
+              </ListGroup>
+            )}
+          </Card.Body>
+        </Card>
+
+        {/* Pagination */}
+        {meta.totalPages > 1 && (
+          <div className="d-flex justify-content-center mt-4">
+            <Pagination>
+              <Pagination.Prev 
+                disabled={page <= 1}
+                onClick={() => handlePageChange(page - 1)}
+              />
+              
+              {[...Array(meta.totalPages)].map((_, index) => {
+                const pageNum = index + 1;
+                if (
+                  pageNum === 1 || 
+                  pageNum === meta.totalPages || 
+                  (pageNum >= page - 1 && pageNum <= page + 1)
+                ) {
+                  return (
+                    <Pagination.Item
+                      key={pageNum}
+                      active={pageNum === page}
+                      onClick={() => handlePageChange(pageNum)}
+                    >
+                      {pageNum}
+                    </Pagination.Item>
+                  );
+                } else if (pageNum === page - 2 || pageNum === page + 2) {
+                  return <Pagination.Ellipsis key={pageNum} />;
+                }
+                return null;
+              })}
+              
+              <Pagination.Next 
+                disabled={page >= meta.totalPages}
+                onClick={() => handlePageChange(page + 1)}
+              />
+            </Pagination>
+          </div>
         )}
-      </div>
-
-      {/* Filters */}
-      <div className="filters">
-        <label>
-    Search:
-    <input
-      type="text"
-      value={search}
-      onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-      placeholder="Search title/desc"
-      style={{ marginLeft: 6 }}
-    />
-  </label>
-        <label>
-          Priority:
-          <select
-            value={priorityFilter}
-            onChange={(e) => {
-              setPriorityFilter(e.target.value);
-              setPage(1);
-            }}
-          >
-            <option value="">All</option>
-            <option value="low">Low</option>
-            <option value="medium">Medium</option>
-            <option value="high">High</option>
-          </select>
-        </label>
-
-        <label>
-          Completed:
-          <select
-            value={completedFilter}
-            onChange={(e) => {
-              setCompletedFilter(e.target.value);
-              setPage(1);
-            }}
-          >
-            <option value="all">All</option>
-            <option value="true">Done</option>
-            <option value="false">Pending</option>
-          </select>
-        </label>
-
-        <label>
-          Sort:
-          <select
-            value={sortBy}
-            onChange={(e) => {
-              setSortBy(e.target.value);
-              setPage(1);
-            }}
-          >
-            <option value="createdAt">Created</option>
-            <option value="dueDate">Due Date</option>
-            <option value="priority">Priority</option>
-            <option value="title">Title</option>
-          </select>
-        </label>
-
-        <select
-          value={order}
-          onChange={(e) => {
-            setOrder(e.target.value);
-            setPage(1);
-          }}
-        >
-          <option value="desc">Newest</option>
-          <option value="asc">Oldest</option>
-        </select>
-
-        <label>
-          Per page:
-          <select
-            value={limit}
-            onChange={(e) => {
-              setLimit(parseInt(e.target.value));
-              setPage(1);
-            }}
-          >
-            <option value={5}>5</option>
-            <option value={10}>10</option>
-            <option value={20}>20</option>
-          </select>
-        </label>
-
-        <button onClick={fetchTodos}>Apply</button>
-      </div>
-
-      {/* Status */}
-      {error && <div className="error">{error}</div>}
-      {loading && <div className="loading">Loading...</div>}
-
-      {/* Todo List */}
-      <ul className="todo-list">
-        {todos.length === 0 && !loading && <li>No todos found</li>}
-        {todos.map((todo) => (
-          <li key={todo._id}>
-            <div className="todo-item">
-              <div>
-                <strong>{todo.title}</strong> — {todo.description}
-                <div className="todo-meta">
-                  <small>Priority: {todo.priority}</small>
-                  {" • "}
-                  <small>
-                    Due:{" "}
-                    {todo.dueDate
-                      ? new Date(todo.dueDate).toLocaleDateString()
-                      : "—"}
-                  </small>
-                  {" • "}
-                  <small>{todo.completed ? "Done" : "Pending"}</small>
-                </div>
-              </div>
-
-              <div className="todo-actions">
-                <button onClick={() => startEdit(todo)}>Edit</button>
-                <button onClick={() => handleDelete(todo._id)}>Delete</button>
-              </div>
-            </div>
-          </li>
-        ))}
-      </ul>
-
-      {/* Pagination */}
-      <div className="pagination">
-        <button onClick={() => handlePageChange(page - 1)} disabled={page <= 1}>
-          Prev
-        </button>
-        <span>
-          Page {meta.page} of {meta.totalPages}
-        </span>
-        <button
-          onClick={() => handlePageChange(page + 1)}
-          disabled={page >= meta.totalPages}
-        >
-          Next
-        </button>
-        <span>Total: {meta.total}</span>
-      </div>
-    </div>
+      </Container>
+    </>
   );
 };
 
