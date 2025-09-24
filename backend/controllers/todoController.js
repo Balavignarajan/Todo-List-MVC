@@ -1,10 +1,10 @@
 const Todo = require("../models/todoModel");
-const { validationResult } = require("express-validator");
 
-// GET all todos
+// GET all todos (only for logged-in user)
 exports.getTodos = async (req, res) => {
   try {
-    const todos = await Todo.find();
+    // find todos that belong to the logged-in user
+    const todos = await Todo.find({ user: req.user.id });
     res.json(todos);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -13,33 +13,32 @@ exports.getTodos = async (req, res) => {
 
 // POST (create) a todo
 exports.createTodo = async (req, res) => {
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    return res.status(400).json({ errors: errors.array() });
-  }
+  try {
+    const { title, description, priority, dueDate } = req.body;
 
-  const { title, description, priority, dueDate } = req.body;
-  const todo = new Todo({
-    title,
-    description,
-    priority,
-    dueDate,
-  });
-  await todo.save();
-  res.json(todo);
+    const todo = new Todo({
+      title,
+      description,
+      priority,
+      dueDate,
+      user: req.user.id, // 🔹 link todo to logged-in user
+    });
+
+    await todo.save();
+    res.json(todo);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 };
 
 // PUT (update) a todo
 exports.updateTodo = async (req, res) => {
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    return res.status(400).json({ errors: errors.array() });
-  }
-
   try {
     const { title, description, completed, priority, dueDate } = req.body;
-    const todo = await Todo.findByIdAndUpdate(
-      req.params.id,
+
+    // 🔹 ensure the todo belongs to the logged-in user
+    const todo = await Todo.findOneAndUpdate(
+      { _id: req.params.id, user: req.user.id },
       {
         title,
         description,
@@ -51,7 +50,9 @@ exports.updateTodo = async (req, res) => {
       { new: true }
     );
 
-    if (!todo) return res.status(404).json({ error: "Todo not found" });
+    if (!todo) {
+      return res.status(404).json({ error: "Todo not found or not yours" });
+    }
 
     res.json(todo);
   } catch (err) {
@@ -62,8 +63,15 @@ exports.updateTodo = async (req, res) => {
 // DELETE a todo
 exports.deleteTodo = async (req, res) => {
   try {
-    const todo = await Todo.findByIdAndDelete(req.params.id);
-    if (!todo) return res.status(404).json({ error: "Todo not found" });
+    // 🔹 ensure the todo belongs to the logged-in user
+    const todo = await Todo.findOneAndDelete({
+      _id: req.params.id,
+      user: req.user.id,
+    });
+
+    if (!todo) {
+      return res.status(404).json({ error: "Todo not found or not yours" });
+    }
 
     res.json({ message: "Todo deleted" });
   } catch (err) {
