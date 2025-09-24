@@ -4,12 +4,20 @@ const Todo = require("../models/todoModel");
 exports.getTodos = async (req, res) => {
   try {
     // 🔹 1. Extract query params (from frontend URL like /todos?page=2&limit=5&priority=high)
-    const { page = 1, limit = 10, priority, completed, sortBy = "createdAt", order = "desc" } = req.query;
+    const { page = 1, limit = 10, priority, completed, sortBy = "createdAt", order = "desc", search } = req.query;
 
     // 🔹 2. Build filter object
     let filter = { user: req.user.id }; // always filter by user
     if (priority) filter.priority = priority; // e.g., "high"
     if (completed !== undefined) filter.completed = completed === "true"; // e.g., "true" or "false"
+
+  // ✅ NEW: search filter (title or description contains keyword, case-insensitive)
+    if (search) {
+      filter.$or = [
+        { title: { $regex: search, $options: "i" } },
+        { description: { $regex: search, $options: "i" } },
+      ];
+    }
 
     // 🔹 3. Calculate pagination
     const skip = (page - 1) * limit;

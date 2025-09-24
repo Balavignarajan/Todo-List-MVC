@@ -12,10 +12,19 @@ import { useNavigate } from "react-router-dom"; // for redirect
 const Home = () => {
   // ✅ State to hold all todos + extra info (page, total, etc.)
   const [todos, setTodos] = useState([]);
-  const [meta, setMeta] = useState({ page: 1, limit: 10, total: 0, totalPages: 0 });
+  const [meta, setMeta] = useState({
+    page: 1,
+    limit: 10,
+    total: 0,
+    totalPages: 0,
+  });
 
   // ✅ State for creating/editing a todo
-  const [newTodo, setNewTodo] = useState({ title: "", description: "", priority: "low" });
+  const [newTodo, setNewTodo] = useState({
+    title: "",
+    description: "",
+    priority: "low",
+  });
   const [editId, setEditId] = useState(null); // check if we are editing
 
   // ✅ Filters and sorting
@@ -25,6 +34,7 @@ const Home = () => {
   const [completedFilter, setCompletedFilter] = useState("all");
   const [sortBy, setSortBy] = useState("createdAt");
   const [order, setOrder] = useState("desc");
+  const [search, setSearch] = useState("");
 
   // ✅ Helpers for loading + error
   const [loading, setLoading] = useState(false);
@@ -48,6 +58,7 @@ const Home = () => {
       completed: completedFilter !== "all" ? completedFilter : undefined,
       sortBy,
       order,
+      search: search || undefined,
     };
   };
 
@@ -75,7 +86,7 @@ const Home = () => {
     } finally {
       setLoading(false);
     }
-  }, [page, limit, priorityFilter, completedFilter, sortBy, order]);
+  }, [page, limit, priorityFilter, completedFilter, sortBy, order, search]);
 
   // ✅ Run fetchTodos when page/filters change
   useEffect(() => {
@@ -117,7 +128,11 @@ const Home = () => {
   // ✅ Edit mode
   const startEdit = (todo) => {
     setEditId(todo._id);
-    setNewTodo({ title: todo.title, description: todo.description, priority: todo.priority });
+    setNewTodo({
+      title: todo.title,
+      description: todo.description,
+      priority: todo.priority,
+    });
   };
 
   const cancelEdit = () => {
@@ -154,14 +169,20 @@ const Home = () => {
   return (
     <div className="container">
       <h1 className="app-title">📝 Todo App</h1>
-      <button className="logout-btn" onClick={handleLogout}>Logout</button>
+      <button className="logout-btn" onClick={handleLogout}>
+        Logout
+      </button>
 
       {/* Show user info */}
       <div className="user-box">
         {user ? (
           <>
-            <p><strong>Name:</strong> {user.name}</p>
-            <p><strong>Email:</strong> {user.email}</p>
+            <p>
+              <strong>Name:</strong> {user.name}
+            </p>
+            <p>
+              <strong>Email:</strong> {user.email}
+            </p>
           </>
         ) : (
           <p>You are not logged in.</p>
@@ -180,7 +201,9 @@ const Home = () => {
           type="text"
           placeholder="Description"
           value={newTodo.description}
-          onChange={(e) => setNewTodo({ ...newTodo, description: e.target.value })}
+          onChange={(e) =>
+            setNewTodo({ ...newTodo, description: e.target.value })
+          }
         />
         <select
           value={newTodo.priority}
@@ -204,8 +227,24 @@ const Home = () => {
       {/* Filters */}
       <div className="filters">
         <label>
+    Search:
+    <input
+      type="text"
+      value={search}
+      onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+      placeholder="Search title/desc"
+      style={{ marginLeft: 6 }}
+    />
+  </label>
+        <label>
           Priority:
-          <select value={priorityFilter} onChange={(e) => { setPriorityFilter(e.target.value); setPage(1); }}>
+          <select
+            value={priorityFilter}
+            onChange={(e) => {
+              setPriorityFilter(e.target.value);
+              setPage(1);
+            }}
+          >
             <option value="">All</option>
             <option value="low">Low</option>
             <option value="medium">Medium</option>
@@ -215,7 +254,13 @@ const Home = () => {
 
         <label>
           Completed:
-          <select value={completedFilter} onChange={(e) => { setCompletedFilter(e.target.value); setPage(1); }}>
+          <select
+            value={completedFilter}
+            onChange={(e) => {
+              setCompletedFilter(e.target.value);
+              setPage(1);
+            }}
+          >
             <option value="all">All</option>
             <option value="true">Done</option>
             <option value="false">Pending</option>
@@ -224,7 +269,13 @@ const Home = () => {
 
         <label>
           Sort:
-          <select value={sortBy} onChange={(e) => { setSortBy(e.target.value); setPage(1); }}>
+          <select
+            value={sortBy}
+            onChange={(e) => {
+              setSortBy(e.target.value);
+              setPage(1);
+            }}
+          >
             <option value="createdAt">Created</option>
             <option value="dueDate">Due Date</option>
             <option value="priority">Priority</option>
@@ -232,14 +283,26 @@ const Home = () => {
           </select>
         </label>
 
-        <select value={order} onChange={(e) => { setOrder(e.target.value); setPage(1); }}>
+        <select
+          value={order}
+          onChange={(e) => {
+            setOrder(e.target.value);
+            setPage(1);
+          }}
+        >
           <option value="desc">Newest</option>
           <option value="asc">Oldest</option>
         </select>
 
         <label>
           Per page:
-          <select value={limit} onChange={(e) => { setLimit(parseInt(e.target.value)); setPage(1); }}>
+          <select
+            value={limit}
+            onChange={(e) => {
+              setLimit(parseInt(e.target.value));
+              setPage(1);
+            }}
+          >
             <option value={5}>5</option>
             <option value={10}>10</option>
             <option value={20}>20</option>
@@ -264,7 +327,12 @@ const Home = () => {
                 <div className="todo-meta">
                   <small>Priority: {todo.priority}</small>
                   {" • "}
-                  <small>Due: {todo.dueDate ? new Date(todo.dueDate).toLocaleDateString() : "—"}</small>
+                  <small>
+                    Due:{" "}
+                    {todo.dueDate
+                      ? new Date(todo.dueDate).toLocaleDateString()
+                      : "—"}
+                  </small>
                   {" • "}
                   <small>{todo.completed ? "Done" : "Pending"}</small>
                 </div>
@@ -281,9 +349,18 @@ const Home = () => {
 
       {/* Pagination */}
       <div className="pagination">
-        <button onClick={() => handlePageChange(page - 1)} disabled={page <= 1}>Prev</button>
-        <span>Page {meta.page} of {meta.totalPages}</span>
-        <button onClick={() => handlePageChange(page + 1)} disabled={page >= meta.totalPages}>Next</button>
+        <button onClick={() => handlePageChange(page - 1)} disabled={page <= 1}>
+          Prev
+        </button>
+        <span>
+          Page {meta.page} of {meta.totalPages}
+        </span>
+        <button
+          onClick={() => handlePageChange(page + 1)}
+          disabled={page >= meta.totalPages}
+        >
+          Next
+        </button>
         <span>Total: {meta.total}</span>
       </div>
     </div>
