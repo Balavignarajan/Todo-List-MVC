@@ -1,11 +1,40 @@
 const Todo = require("../models/todoModel");
 
-// GET all todos (only for logged-in user)
+// GET all todos (with pagination, filtering, sorting)
 exports.getTodos = async (req, res) => {
   try {
-    // find todos that belong to the logged-in user
-    const todos = await Todo.find({ user: req.user.id });
-    res.json(todos);
+    // 🔹 1. Extract query params (from frontend URL like /todos?page=2&limit=5&priority=high)
+    const { page = 1, limit = 10, priority, completed, sortBy = "createdAt", order = "desc" } = req.query;
+
+    // 🔹 2. Build filter object
+    let filter = { user: req.user.id }; // always filter by user
+    if (priority) filter.priority = priority; // e.g., "high"
+    if (completed !== undefined) filter.completed = completed === "true"; // e.g., "true" or "false"
+
+    // 🔹 3. Calculate pagination
+    const skip = (page - 1) * limit;
+
+    // 🔹 4. Build sort object
+    const sortOrder = order === "asc" ? 1 : -1;
+    let sort = {};
+    sort[sortBy] = sortOrder; // e.g., { createdAt: -1 }
+
+    // 🔹 5. Fetch todos from DB
+    const todos = await Todo.find(filter)
+      .sort(sort)
+      .skip(skip)
+      .limit(parseInt(limit));
+
+    // 🔹 6. Count total todos (for frontend pagination UI)
+    const total = await Todo.countDocuments(filter);
+
+    res.json({
+      page: parseInt(page),
+      limit: parseInt(limit),
+      total,
+      totalPages: Math.ceil(total / limit),
+      todos,
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

@@ -1,177 +1,174 @@
-import React, { useEffect, useState } from "react";
+// src/pages/Home.jsx
+import React, { useEffect, useState, useCallback } from "react";
 import {
   apiCreateTodo,
   apiDeleteTodo,
   apiGetTodos,
   apiUpdateTodo,
-} from "../services/api.service";
-import "../pages/Home.css"; // optional, simple styles
-import { useNavigate } from "react-router-dom";
+} from "../services/api.service"; // API calls (backend)
+import "../pages/Home.css"; // CSS styling
+import { useNavigate } from "react-router-dom"; // for redirect
 
-
-// Home component: shows a form to add/edit todos and a list of todos
 const Home = () => {
-  // 1) State for the list of todos (starts empty)
+  // ✅ State to hold all todos + extra info (page, total, etc.)
   const [todos, setTodos] = useState([]);
+  const [meta, setMeta] = useState({ page: 1, limit: 10, total: 0, totalPages: 0 });
 
-  // 2) State for the form (controlled inputs)
-  const [newTodo, setNewTodo] = useState({
-    title: "",
-    description: "",
-    priority: "low",
-  });
+  // ✅ State for creating/editing a todo
+  const [newTodo, setNewTodo] = useState({ title: "", description: "", priority: "low" });
+  const [editId, setEditId] = useState(null); // check if we are editing
 
-  // 3) If editId is null => create mode. Otherwise edit mode for that id.
-  const [editId, setEditId] = useState(null);
+  // ✅ Filters and sorting
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
+  const [priorityFilter, setPriorityFilter] = useState("");
+  const [completedFilter, setCompletedFilter] = useState("all");
+  const [sortBy, setSortBy] = useState("createdAt");
+  const [order, setOrder] = useState("desc");
 
-  // (Optional) small UI helpers
+  // ✅ Helpers for loading + error
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-    const navigate = useNavigate();
-  
 
-  //For showing user name
+  const navigate = useNavigate();
+
+  // ✅ User info (from localStorage after login)
   const [user, setUser] = useState(null);
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
-    if (storedUser) {
-      setUser(JSON.parse(storedUser)); // 👈 parse back to object
-    }
+    if (storedUser) setUser(JSON.parse(storedUser));
   }, []);
 
-  // Load todos once when component mounts
-  useEffect(() => {
-    fetchTodos();
-  }, []); // empty array => run once
+  // ✅ Make request params based on filters
+  const buildParams = () => {
+    return {
+      page,
+      limit,
+      priority: priorityFilter || undefined,
+      completed: completedFilter !== "all" ? completedFilter : undefined,
+      sortBy,
+      order,
+    };
+  };
 
-  // Fetch list from server
-  const fetchTodos = async () => {
+  // ✅ Fetch todos from backend
+  const fetchTodos = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
-      const response = await apiGetTodos(); // api service returns axios response
-      // common pattern: server returns array in response.data
-      setTodos(response.data || []); // safety: default to empty array
+      const res = await apiGetTodos(buildParams());
+      const data = res.data || {};
+
+      // handle backend formats
+      const finalTodos = Array.isArray(data.todos) ? data.todos : [];
+      const returnedMeta = data.meta || {
+        page: data.page || 1,
+        limit: data.limit || 10,
+        total: data.total || 0,
+        totalPages: data.totalPages || 0,
+      };
+
+      setTodos(finalTodos);
+      setMeta(returnedMeta);
     } catch (err) {
-      console.error("Failed to fetch todos:", err);
-      setError("Could not load todos. See console.");
+      setError(err.response?.data?.error || "Could not load todos.");
     } finally {
       setLoading(false);
     }
-  };
+  }, [page, limit, priorityFilter, completedFilter, sortBy, order]);
 
-  // Create a new todo on server
+  // ✅ Run fetchTodos when page/filters change
+  useEffect(() => {
+    fetchTodos();
+  }, [fetchTodos]);
+
+  // ✅ Create new todo
   const handleCreate = async () => {
-    // basic validation
     if (!newTodo.title.trim()) {
       setError("Title is required.");
       return;
     }
-    setError("");
     try {
-      await apiCreateTodo(newTodo); // POST to server
-      // reset the form to defaults
+      await apiCreateTodo(newTodo);
+      setPage(1); // show newest
       setNewTodo({ title: "", description: "", priority: "low" });
-      // reload list
       fetchTodos();
     } catch (err) {
-      console.error("Failed to create todo:", err);
-
-      // Check for validation error from server showing backend message in ui
-      if (err.response && err.response.data && err.response.data.errors) {
-        const serverErrors = err.response.data.errors;
-        const titleError = serverErrors.find((e) => e.path === "title");
-        if (titleError) {
-          setError(titleError.msg); // Show "Title must be at least 3 characters"
-          return;
-        }
-      }
-
-      setError("Failed to create todo. See console.");
+      setError(err.response?.data?.error || "Failed to create todo.");
     }
   };
 
-  // Update an existing todo on server
+  // ✅ Update existing todo
   const handleUpdate = async () => {
     if (!newTodo.title.trim()) {
       setError("Title is required.");
       return;
     }
-    setError("");
     try {
-      await apiUpdateTodo(editId, newTodo); // PUT to server
-      // exit edit mode and clear form
+      await apiUpdateTodo(editId, newTodo);
       setEditId(null);
-      setNewTodo({ title: "", description: "", priority: "low" }); // <-- fixed to "low"
+      setNewTodo({ title: "", description: "", priority: "low" });
       fetchTodos();
     } catch (err) {
-      console.error("Failed to update todo:", err);
-      setError("Failed to update todo. See console.");
+      setError("Failed to update todo.");
     }
   };
 
-  // Prepare form for editing a todo
+  // ✅ Edit mode
   const startEdit = (todo) => {
-    setEditId(todo._id); // use the unique id from DB
-    setNewTodo({
-      title: todo.title || "",
-      description: todo.description || "",
-      priority: todo.priority || "low",
-    });
-    setError("");
+    setEditId(todo._id);
+    setNewTodo({ title: todo.title, description: todo.description, priority: todo.priority });
   };
 
-  // Cancel editing and reset form
   const cancelEdit = () => {
     setEditId(null);
     setNewTodo({ title: "", description: "", priority: "low" });
-    setError("");
   };
 
-  // Delete a todo
+  // ✅ Delete
   const handleDelete = async (id) => {
-    // small confirmation to avoid accidental deletes
     if (!window.confirm("Delete this todo?")) return;
     try {
       await apiDeleteTodo(id);
       fetchTodos();
     } catch (err) {
-      console.error("Failed to delete todo:", err);
-      setError("Failed to delete todo. See console.");
+      setError("Failed to delete todo.");
     }
   };
 
-//Logout
-const handleLogout = () => {
-  localStorage.removeItem("token");
-  localStorage.removeItem("user");
-  alert("Logged out!");
-      navigate("/"); // or "/dashboard" or wherever you want
-};
+  // ✅ Page change
+  const handlePageChange = (newPage) => {
+    if (newPage >= 1 && newPage <= meta.totalPages) {
+      setPage(newPage);
+    }
+  };
 
+  // ✅ Logout
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    alert("Logged out!");
+    navigate("/");
+  };
 
   return (
-    <>
-      <h1 className="app-title">📝 Todo App (Beginner friendly)</h1> 
-      <button onClick={handleLogout}>Logout</button>
+    <div className="container">
+      <h1 className="app-title">📝 Todo App</h1>
+      <button className="logout-btn" onClick={handleLogout}>Logout</button>
 
-      <div>
-        <h1>Welcome to the Home Page</h1>
+      {/* Show user info */}
+      <div className="user-box">
         {user ? (
-          <div>
-            <p>
-              <strong>Name:</strong> {user.name}
-            </p>
-            <p>
-              <strong>Email:</strong> {user.email}
-            </p>
-          </div>
+          <>
+            <p><strong>Name:</strong> {user.name}</p>
+            <p><strong>Email:</strong> {user.email}</p>
+          </>
         ) : (
           <p>You are not logged in.</p>
         )}
       </div>
 
-      {/* Form Section */}
+      {/* Form */}
       <div className="todo-form">
         <input
           type="text"
@@ -183,9 +180,7 @@ const handleLogout = () => {
           type="text"
           placeholder="Description"
           value={newTodo.description}
-          onChange={(e) =>
-            setNewTodo({ ...newTodo, description: e.target.value })
-          }
+          onChange={(e) => setNewTodo({ ...newTodo, description: e.target.value })}
         />
         <select
           value={newTodo.priority}
@@ -196,10 +191,9 @@ const handleLogout = () => {
           <option value="high">High</option>
         </select>
 
-        {/* Show Update or Create based on editId */}
         {editId ? (
           <>
-            <button onClick={handleUpdate}>Update Todo</button>
+            <button onClick={handleUpdate}>Update</button>
             <button onClick={cancelEdit}>Cancel</button>
           </>
         ) : (
@@ -207,21 +201,92 @@ const handleLogout = () => {
         )}
       </div>
 
-      {/* show error or loading */}
-      {error && <div className="error">{error}</div>}
-      {loading && <div>Loading todos...</div>}
+      {/* Filters */}
+      <div className="filters">
+        <label>
+          Priority:
+          <select value={priorityFilter} onChange={(e) => { setPriorityFilter(e.target.value); setPage(1); }}>
+            <option value="">All</option>
+            <option value="low">Low</option>
+            <option value="medium">Medium</option>
+            <option value="high">High</option>
+          </select>
+        </label>
 
-      {/* List of Todos */}
+        <label>
+          Completed:
+          <select value={completedFilter} onChange={(e) => { setCompletedFilter(e.target.value); setPage(1); }}>
+            <option value="all">All</option>
+            <option value="true">Done</option>
+            <option value="false">Pending</option>
+          </select>
+        </label>
+
+        <label>
+          Sort:
+          <select value={sortBy} onChange={(e) => { setSortBy(e.target.value); setPage(1); }}>
+            <option value="createdAt">Created</option>
+            <option value="dueDate">Due Date</option>
+            <option value="priority">Priority</option>
+            <option value="title">Title</option>
+          </select>
+        </label>
+
+        <select value={order} onChange={(e) => { setOrder(e.target.value); setPage(1); }}>
+          <option value="desc">Newest</option>
+          <option value="asc">Oldest</option>
+        </select>
+
+        <label>
+          Per page:
+          <select value={limit} onChange={(e) => { setLimit(parseInt(e.target.value)); setPage(1); }}>
+            <option value={5}>5</option>
+            <option value={10}>10</option>
+            <option value={20}>20</option>
+          </select>
+        </label>
+
+        <button onClick={fetchTodos}>Apply</button>
+      </div>
+
+      {/* Status */}
+      {error && <div className="error">{error}</div>}
+      {loading && <div className="loading">Loading...</div>}
+
+      {/* Todo List */}
       <ul className="todo-list">
+        {todos.length === 0 && !loading && <li>No todos found</li>}
         {todos.map((todo) => (
           <li key={todo._id}>
-            <strong>{todo.title}</strong> - {todo.description} ({todo.priority})
-            <button onClick={() => startEdit(todo)}>Edit</button>
-            <button onClick={() => handleDelete(todo._id)}>Delete</button>
+            <div className="todo-item">
+              <div>
+                <strong>{todo.title}</strong> — {todo.description}
+                <div className="todo-meta">
+                  <small>Priority: {todo.priority}</small>
+                  {" • "}
+                  <small>Due: {todo.dueDate ? new Date(todo.dueDate).toLocaleDateString() : "—"}</small>
+                  {" • "}
+                  <small>{todo.completed ? "Done" : "Pending"}</small>
+                </div>
+              </div>
+
+              <div className="todo-actions">
+                <button onClick={() => startEdit(todo)}>Edit</button>
+                <button onClick={() => handleDelete(todo._id)}>Delete</button>
+              </div>
+            </div>
           </li>
         ))}
       </ul>
-    </>
+
+      {/* Pagination */}
+      <div className="pagination">
+        <button onClick={() => handlePageChange(page - 1)} disabled={page <= 1}>Prev</button>
+        <span>Page {meta.page} of {meta.totalPages}</span>
+        <button onClick={() => handlePageChange(page + 1)} disabled={page >= meta.totalPages}>Next</button>
+        <span>Total: {meta.total}</span>
+      </div>
+    </div>
   );
 };
 

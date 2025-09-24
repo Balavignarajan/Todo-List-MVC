@@ -1,7 +1,7 @@
 import axiosInstance from "../utils/config/axios-instance-config";
 
-export const apiGetTodos = () => {
-  return axiosInstance.get("/api/todos");
+export const apiGetTodos = (params) => {
+  return axiosInstance.get("/api/todos", {params});
 };
 
 export const apiCreateTodo = (todo) => {
